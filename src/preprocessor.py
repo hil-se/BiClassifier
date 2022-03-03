@@ -61,3 +61,22 @@ def FairBalance(X, y, A, class_balance = False):
     return sample_weight
 
 
+def ClassBalance(X, y, A):
+    # X: independent variables (2-d pd.DataFrame)
+    # y: the dependent variable (1-d np.array, binary y in {0,1})
+    # A: the name of the sensitive attribute with binary values (string)
+    grouping = {}
+    for i, label in enumerate(y):
+        key = (X[A][i], label)
+        if key not in grouping:
+            grouping[key]=[]
+        grouping[key].append(i)
+    group_weight = Counter(X[A])
+    sample_weight = np.array([1.0]*len(y))
+    for key in grouping:
+        weight = group_weight[key[0]]/len(grouping[key])
+        for i in grouping[key]:
+            sample_weight[i] = weight
+    # Rescale the total weights to len(y)
+    sample_weight = sample_weight * len(y) / sum(sample_weight)
+    return sample_weight

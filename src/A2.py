@@ -5,6 +5,7 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.linear_model import LogisticRegression
 import pandas as pd
 import numpy as np
+from preprocessor import ClassBalance, FairBalance
 from pdb import set_trace
 
 
@@ -55,41 +56,27 @@ if __name__ == "__main__":
     X_test = data_test[independent]
     y_test = np.array(data_test[dependent])
 
-    # Train model for each group
-    clfs = {}
-    groups = {}
-    m_train = {}
-    m_test = {}
-    for g in X[protected].unique():
-        groups[g] = X[X[protected] == g].index.to_list()
-        # Fit model
-        clf = LogisticRegression(max_iter=1000, class_weight = 'balanced')
-        # clf = LogisticRegression(max_iter=1000)
-        clf.fit(X_train[groups[g]], y[groups[g]])
-        clfs[g] = clf
-        # Test on training
-        m_train[g] = Metrics(clf, X.loc[groups[g]], y[groups[g]], preprocessor)
-        # Test on testing
-        test_g = X_test[X_test[protected] == g].index.to_list()
-        m_test[g] = Metrics(clf, X_test.loc[test_g], y_test[test_g], preprocessor)
+    # Train model
+    sample_weight = ClassBalance(X, y, protected)
+    # sample_weight = FairBalance(X, y, protected, class_balance=True)
+    clf = LogisticRegression(max_iter=1000)
+    clf.fit(X_train, y, sample_weight = sample_weight)
+
+    m_train = Metrics(clf, X, y, preprocessor)
+    m_test = Metrics(clf, X_test, y_test, preprocessor)
+
 
     print("Training: ")
-    print("Accuracy Male: %f" % m_train["Male"].accuracy())
-    print("Accuracy Female: %f" % m_train["Female"].accuracy())
-    print("AO Male: %f" % (m_train["Male"].tpr()+m_train["Male"].fpr()))
-    print("AO Female: %f" % (m_train["Female"].tpr()+m_train["Female"].fpr()))
-    print("EOD: %f" % (m_train["Male"].tpr() - m_train["Female"].tpr()))
-    print("AOD: %f" % (
-            (m_train["Male"].tpr() - m_train["Female"].tpr() + m_train["Male"].fpr() - m_train["Female"].fpr()) / 2))
-    print("SPD: %f" % (m_train["Male"].pr() - m_train["Female"].pr()))
+    print("Accuracy: %f" % m_train.accuracy())
+    print("AO: %f" % (m_train.tpr()+m_train.fpr()))
+    print("EOD: %f" % m_train.eod(protected))
+    print("AOD: %f" % m_train.aod(protected))
+    print("SPD: %f" % m_train.spd(protected))
 
     print("")
     print("Testing: ")
-    print("Accuracy Male: %f" % m_test["Male"].accuracy())
-    print("Accuracy Female: %f" % m_test["Female"].accuracy())
-    print("AO Male: %f" % (m_test["Male"].tpr() + m_test["Male"].fpr()))
-    print("AO Female: %f" % (m_test["Female"].tpr() + m_test["Female"].fpr()))
-    print("EOD: %f" % (m_test["Male"].tpr() - m_test["Female"].tpr()))
-    print("AOD: %f" % (
-            (m_test["Male"].tpr() - m_test["Female"].tpr() + m_test["Male"].fpr() - m_test["Female"].fpr()) / 2))
-    print("SPD: %f" % (m_test["Male"].pr() - m_test["Female"].pr()))
+    print("Accuracy: %f" % m_test.accuracy())
+    print("AO: %f" % (m_test.tpr() + m_test.fpr()))
+    print("EOD: %f" % m_test.eod(protected))
+    print("AOD: %f" % m_test.aod(protected))
+    print("SPD: %f" % m_test.spd(protected))
